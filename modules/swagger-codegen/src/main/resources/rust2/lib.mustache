@@ -49,6 +49,52 @@ pub trait Api {
 {{/operation}}{{/operations}}{{/apis}}{{/apiInfo}}
 }
 
+pub trait ApiNoContext {
+{{#apiInfo}}{{#apis}}{{#operations}}{{#operation}}
+{{#summary}}    /// {{{summary}}}{{/summary}}
+    fn {{#vendorExtensions}}{{operation_id}}{{/vendorExtensions}}(&self{{#allParams}}, {{paramName}}: {{^required}}{{#isFile}}Box<Future<Item={{/isFile}}Option<{{/required}}{{#isListContainer}}&{{/isListContainer}}{{{dataType}}}{{^required}}>{{#isFile}}, Error=Error> + Send>{{/isFile}}{{/required}}{{/allParams}}) -> Box<Future<Item={{operationId}}Response, Error=ApiError> + Send>;
+{{/operation}}{{/operations}}{{/apis}}{{/apiInfo}}
+}
+
+pub struct ContextWrapper<T> {
+    api: T,
+    context: Context,
+}
+
+impl<T> ContextWrapper<T> {
+    pub fn new(api: T, context: Context) -> ContextWrapper<T> {
+        ContextWrapper{api, context}
+    }
+}
+
+trait ContextWrapperExt<T> {
+    fn with_context(self, context: Context) -> ContextWrapper<T>;
+}
+
+impl<T: Api> ContextWrapperExt<T> for T {
+    fn with_context(self, context: Context) -> ContextWrapper<T> {
+        ContextWrapper::<T>::new(self, context)
+    }
+}
+
+impl<T: Api> ApiNoContext for ContextWrapper<T> {
+{{#apiInfo}}{{#apis}}{{#operations}}{{#operation}}
+{{#summary}}    /// {{{summary}}}{{/summary}}
+    fn {{#vendorExtensions}}{{operation_id}}{{/vendorExtensions}}(&self{{#allParams}}, {{paramName}}: {{^required}}{{#isFile}}Box<Future<Item={{/isFile}}Option<{{/required}}{{#isListContainer}}&{{/isListContainer}}{{{dataType}}}{{^required}}>{{#isFile}}, Error=Error> + Send>{{/isFile}}{{/required}}{{/allParams}}) -> Box<Future<Item={{operationId}}Response, Error=ApiError> + Send> {
+        self.api.{{#vendorExtensions}}{{operation_id}}{{/vendorExtensions}}({{#allParams}}{{paramName}}, {{/allParams}}&self.context)
+    }
+{{/operation}}{{/operations}}{{/apis}}{{/apiInfo}}
+}
+
+impl<T: ApiNoContext> Api for T {
+{{#apiInfo}}{{#apis}}{{#operations}}{{#operation}}
+{{#summary}}    /// {{{summary}}}{{/summary}}
+    fn {{#vendorExtensions}}{{operation_id}}{{/vendorExtensions}}(&self{{#allParams}}, {{paramName}}: {{^required}}{{#isFile}}Box<Future<Item={{/isFile}}Option<{{/required}}{{#isListContainer}}&{{/isListContainer}}{{{dataType}}}{{^required}}>{{#isFile}}, Error=Error> + Send>{{/isFile}}{{/required}}{{/allParams}}, _: &Context) -> Box<Future<Item={{operationId}}Response, Error=ApiError> + Send> {
+        self.{{#vendorExtensions}}{{operation_id}}{{/vendorExtensions}}({{#allParams}}{{paramName}}, {{/allParams}})
+    }
+{{/operation}}{{/operations}}{{/apis}}{{/apiInfo}}
+}
+
 #[cfg(feature = "client")]
 pub mod client;
 
